@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 pwd = os.getcwd()
+pd.set_option('display.max_row', 100)
 
 # survived data
 gender_submission_data = pd.read_csv(pwd + '/data/gender_submission.csv')
@@ -18,6 +19,7 @@ ted = pd.read_csv(pwd + '/data/test.csv')
 # copied test_data
 cted = pandas.DataFrame.copy(ted)
 
+#  column list
 # 'PassengerId', 'Survived', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp',
 # 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked'
 print(trd.columns)
@@ -43,8 +45,13 @@ title = trd.Name.str.split(',').str[-1].str.split('.').str[0]
 # Don               1 두목 호칭
 # Jonkheer          1 귀족 호칭
 
+# todo : 전처리 util을 만들어야함.
+# 이름의 호칭을 클래스(숫자) 로 변경
+
+
+
 # 가설 1. 남성이 여성보다 많이 죽었을것이다.
-# 가설 2. 어린아이, 노인의 생존률이 더 높았을 것이다.
+# 가설 2. 어린아이, 노인의 생존률이 더 높았을 것이다. (검증 결과 어린아이의 생존률만 높음)
 # 가설 1과 2를 조합하여 나이대별로도 클래스를 구분하고 싶지만
 # 실제로 그러기는 어려우므로 남자와 여자로 구분한다.
 
@@ -79,12 +86,16 @@ for data in [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0], [3, 1]]:
 ctrd.loc[ctrd.Age - ctrd.Age.round(0) != 0, 'Age'] = \
 	ctrd[ctrd.Age - ctrd.Age.round(0) != 0].Age.apply(np.ceil)
 
-for i in range(ctrd.Age.min(), ctrd.Age.max()):
-	plt.plot(i, ctrd[ctrd.Age.between(i, i + 10)].Survived, 'o')
-	plt.show()
+age_list = list(range(int(ctrd.Age.min()), int(ctrd.Age.max()) + 2, 10))
+survived_rate_list = []
 
-# print(title.value_counts())
-# 
-# print(trd)
-# print(ted)
-# print(gender_submission_data)
+for idx, age in enumerate(age_list):
+	if idx == 0:
+		continue
+	survived_rate_list.append(ctrd[ctrd['Age'].between(age_list[idx - 1], age)].Survived.mean())
+
+plt.plot(age_list[1:], survived_rate_list)
+plt.show()
+
+# 가설 2:
+# 어린아이는 생존률이 높지만 나이든 사람의 생존률은 높지 않다.
