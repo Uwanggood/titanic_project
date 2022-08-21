@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+
 #  column list
 # 'PassengerId', 'Survived', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp',
 # 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked'\
@@ -18,13 +19,51 @@ def preprocessing(trd):
 	ctrd = pd.DataFrame.copy(trd)
 	title = split_name.str[1].str.split('.').str[0]
 	family_name = split_name.str[0]
+	unique_title = another_title_list = title.unique()
 
-	has_family_list = trd[
-		(trd.Name.str.split(',').str[0].isin(family_name[family_name.groupby(family_name)
-											 .transform('count') > 1])) &
-		((trd.Parch > 0) |
-		 (trd.SibSp > 0))
-		]
+	another_title_list = np.delete(another_title_list, np.argwhere(another_title_list == ' Mr'))
+	another_title_list = np.delete(another_title_list, np.argwhere(another_title_list == ' Mrs'))
+	another_title_list = np.delete(another_title_list, np.argwhere(another_title_list == ' Miss'))
+
+
+	# 가설 1 남자 생존률 18% , 여자 생존률 74%.
+	# print(trd[trd.Sex == 'male'].Survived.mean())
+	# print(trd[trd.Sex == 'female'].Survived.mean())
+
+	# 가설 2
+	# 5세 이하 생존률 70% , 44명.
+	# print(trd[trd.Age.between(0, 5)].Survived.mean())
+
+	# 6~ 10세 이하 생존률 35% : 20명.
+	# print(trd[trd.Age.between(6, 10)].Survived.mean())
+
+	# 가설 2를 증명하기 위해 그래프를 그린다.
+	# 문제 1 : 나이에 null이 있는 사람들이 있음.
+	# 문제 2 : 나이가 소수점인 사람이 있음.
+
+	# 해결 1 : 나이에 null인 사람을 평균으로 맞춘다.
+	# Pclass와 사망에 따른 평균으로 바꿔놓는다.
+
+	# -> change -> Survived와 관련되어 삭제
+
+	for data in [1, 2, 3]:
+		pclass = data
+		na_option = (trd.Age.isna()) & (trd.Pclass == pclass)
+		fill_option = (ctrd.Pclass == pclass) & (ctrd.Age.notna())
+		ctrd.loc[na_option, 'Age'] = round(ctrd[na_option].Age.fillna(ctrd[fill_option].Age.mean()))
+
+	# 해결 2 : 나이가 소수점인 사람들은 올림처리.
+	ctrd.loc[ctrd.Age - ctrd.Age.round(0) != 0, 'Age'] = \
+		ctrd[ctrd.Age - ctrd.Age.round(0) != 0].Age.apply(np.ceil)
+
+	# age_list = list(range(int(ctrd.Age.min()), int(ctrd.Age.max()) + 2, 10))
+	# survived_rate_list = []
+	#
+	# for idx, age in enumerate(age_list):
+	# 	if idx == 0:
+	# 		continue
+	# survived_rate_list.append(ctrd[ctrd['Age'].between(age_list[idx - 1], age)].Survived.mean())
+
 	""""
 	독특한 호칭이 존재함
 	Mr              517 남성(1)
@@ -54,40 +93,30 @@ def preprocessing(trd):
 	ctrd.loc[ctrd.Name.str.contains(' Miss.', na=False), 'Name'] = 2
 	ctrd.loc[ctrd.Name.str.contains(' Mrs.', na=False), 'Name'] = 3
 
-	another_title_list = [
-		' Master.',
-		' Dr.',
-		' Rev.',
-		' Mlle.',
-		' Major.',
-		' Col.',
-		' the Countess.',
-		' Capt.',
-		' Ms.',
-		' Sir.',
-		' Lady.',
-		' Mme.',
-		' Don.',
-		' Jonkheer.',
-	]
 	for another_title in another_title_list:
 		ctrd.loc[
 			(ctrd.Name.str.contains(another_title, na=False)) & (ctrd.Sex == 'male'), 'Name'] = 1
-	ctrd.loc[(ctrd.Name.str.contains(another_title, na=False)) & (ctrd.Sex == 'female') & (
-		ctrd.Age < Miss_age_mean), 'Name'] = 2
-	ctrd.loc[(ctrd.Name.str.contains(another_title, na=False)) & (ctrd.Sex == 'female') & (
-		ctrd.Age > Miss_age_mean), 'Name'] = 3
+		ctrd.loc[(ctrd.Name.str.contains(another_title, na=False)) & (ctrd.Sex == 'female') & (
+			ctrd.Age < Miss_age_mean), 'Name'] = 2
+		ctrd.loc[(ctrd.Name.str.contains(another_title, na=False)) & (ctrd.Sex == 'female') & (
+			ctrd.Age >= Miss_age_mean), 'Name'] = 3
 
 	'''
 	Sex 
 	남자 0 여자 1 
 	'''
-
-
+	ctrd.loc[ctrd.Sex == 'male', 'Sex'] = 0
+	ctrd.loc[ctrd.Sex == 'female', 'Sex'] = 1
 	'''
 	SibSp 와 Parch를 분석하기에 앞서 성씨와 호를 나눠서 컬럼으로 만든다.
 	SibSp - 형제자매, 배우자 
 	SibSp가 0인것은 0 나머지는  1로
+	has_family_list = trd[
+		(trd.Name.str.split(',').str[0].isin(family_name[family_name.groupby(family_name)
+											 .transform('count') > 1])) &
+		((trd.Parch > 0) |
+		 (trd.SibSp > 0))
+		]
 	has_family_list[(has_family_list.SibSp ==1) & (has_family_list.Pclass == 3) & (has_family_list.Name.str.contains("\)")) ].Name.str.split(',').str[0].apply(lambda x : trd[trd.Name.str.contains(x)].Survived)
 	'''
 
@@ -158,50 +187,14 @@ def preprocessing(trd):
 	0원인 애들은 각 Pclass의 평균으로 맞춰놓음 
 	그 후 평균보다 낮으면 0 , 같거나 높으면 1로 변환 
 	'''
-	ctrd.loc[(ctrd.Fare == 0) & (ctrd.Pclass == 1), 'Fare'] = ctrd[ctrd.Pclass == 0].Fare.mean()
-	ctrd.loc[(ctrd.Fare == 0) & (ctrd.Pclass == 2), 'Fare'] = ctrd[ctrd.Pclass == 0].Fare.mean()
-	ctrd.loc[(ctrd.Fare == 0) & (ctrd.Pclass == 3), 'Fare'] = ctrd[ctrd.Pclass == 0].Fare.mean()
+	ctrd.loc[((ctrd.Fare.isna()) | (ctrd.Fare == 0)) & (ctrd.Pclass == 1), 'Fare'] = ctrd[ctrd.Pclass == 1].Fare.mean()
+	ctrd.loc[((ctrd.Fare.isna()) | (ctrd.Fare == 0)) & (ctrd.Pclass == 2), 'Fare'] = ctrd[ctrd.Pclass == 2].Fare.mean()
+	ctrd.loc[((ctrd.Fare.isna()) | (ctrd.Fare == 0)) & (ctrd.Pclass == 3), 'Fare'] = ctrd[ctrd.Pclass == 3].Fare.mean()
 
 	fare_mean = ctrd.Fare.mean()
 	ctrd.loc[(ctrd.Fare < fare_mean), 'Fare'] = 0
 	ctrd.loc[(ctrd.Fare >= fare_mean), 'Fare'] = 1
 
-	# 가설 1 남자 생존률 18% , 여자 생존률 74%.
-	# print(trd[trd.Sex == 'male'].Survived.mean())
-	# print(trd[trd.Sex == 'female'].Survived.mean())
-
-	# 가설 2
-	# 5세 이하 생존률 70% , 44명.
-	# print(trd[trd.Age.between(0, 5)].Survived.mean())
-
-	# 6~ 10세 이하 생존률 35% : 20명.
-	# print(trd[trd.Age.between(6, 10)].Survived.mean())
-
-	# 가설 2를 증명하기 위해 그래프를 그린다.
-	# 문제 1 : 나이에 null이 있는 사람들이 있음.
-	# 문제 2 : 나이가 소수점인 사람이 있음.
-
-	# 해결 1 : 나이에 null인 사람을 평균으로 맞춘다.
-	# Pclass와 사망에 따른 평균으로 바꿔놓는다.
-
-	for data in [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0], [3, 1]]:
-		pclass = data[0]
-	survived = data[1]
-	na_option = (trd.Age.isna()) & (trd.Pclass == pclass) & (trd.Survived == survived)
-	fill_option = (trd.Pclass == pclass) & (trd.Survived == survived) & (trd.Age.notna())
-	ctrd.loc[na_option, 'Age'] = round(ctrd[na_option].Age.fillna(ctrd[fill_option].Age.mean()))
-
-	# 해결 2 : 나이가 소수점인 사람들은 올림처리.
-	ctrd.loc[ctrd.Age - ctrd.Age.round(0) != 0, 'Age'] = \
-		ctrd[ctrd.Age - ctrd.Age.round(0) != 0].Age.apply(np.ceil)
-
-	age_list = list(range(int(ctrd.Age.min()), int(ctrd.Age.max()) + 2, 10))
-	survived_rate_list = []
-
-	for idx, age in enumerate(age_list):
-		if idx == 0:
-			continue
-	survived_rate_list.append(ctrd[ctrd['Age'].between(age_list[idx - 1], age)].Survived.mean())
 
 	'''
 	Cabin 과  Embarked 삭제
@@ -225,9 +218,7 @@ def preprocessing(trd):
 
 	# 가설 2:
 	# 어린아이는 생존률이 높지만 나이든 사람의 생존률은 높지 않다.
-
 	return ctrd
-
 
 # splitter = '\\' if platform.system() == 'Windows' else '/'
 # pwd = os.path.dirname(os.getcwd()) + splitter
