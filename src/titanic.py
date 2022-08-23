@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import platform
 import titanic_preprocessing
+import knn_pred
+import linear_regression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
@@ -20,12 +22,11 @@ preprocessing_test_data = titanic_preprocessing.preprocessing(tst)
 y_train = preprocessing_data.Survived
 preprocessing_data.drop(['Survived'], axis=1, inplace=True)
 
-clf_knn = KNeighborsClassifier(n_neighbors=2)
-clf_knn.fit(preprocessing_data, y_train)
+# pred, score = knn_pred.knn_prediction(preprocessing_data, preprocessing_test_data, y_train, y_test)
+pred_lr, pred_ridge, pred_lasso, pred_elastic_net = linear_regression.pred_linear_regression(
+	preprocessing_data, preprocessing_test_data, y_train, y_test)
 
-knn_pred = clf_knn.predict(preprocessing_test_data)
-score = accuracy_score(y_test, knn_pred)
-
-result = pd.concat([preprocessing_test_data, pd.DataFrame(knn_pred, columns=['Survived'])], axis=1)[['PassengerId', 'Survived']]
-result.to_csv(pwd + f'results{splitter}knn_result.csv', index=False)
-
+pred = pred_lasso
+result = pd.concat([preprocessing_test_data, pd.DataFrame(pred, columns=['Survived'])], axis=1)[
+	['PassengerId', 'Survived']]
+result.to_csv(pwd + f'results{splitter}result.csv', index=False)
