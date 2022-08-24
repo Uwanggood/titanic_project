@@ -11,42 +11,38 @@ from tensorflow.keras.activations import relu
 
 import matplotlib.pyplot as plt
 
-np.random.seed(0)
-tf.random.set_seed(0)
 
-raw_wine = datasets.load_wine()
+def cnn_pred(X_t, X_te, y_t, y_te):
+	x_train = X_t.to_numpy().astype(np.float32)
+	y_train = y_t.to_numpy().astype(np.float32)
+	x_test = X_te.to_numpy().astype(np.float32)
+	y_test = y_te.to_numpy().astype(np.float32)
+	print(x_train.shape, y_train.shape)
+	print(set(y_train))
 
-X = raw_wine.data
-y = raw_wine.target
+	y_hot = to_categorical(y_train)
+	n_feat = x_train.shape[1]
+	n_class = len(set(y_train))
+	epo = 100
 
-print(X.shape, y.shape)
-print(set(y))
+	model = Sequential()
+	model.add(Dense(20, input_dim=n_feat))
+	model.add(BatchNormalization())
+	model.add(Activation(relu))
+	model.add(Dense(n_class))
+	model.add(Activation('relu'))
 
-y_hot = to_categorical(y)
+	model.summary()
 
-X_tn, X_te, y_tn, y_te = train_test_split(X, y_hot, random_state=0)
+	model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+	hist = model.fit(x_train, y_train, epochs=epo, batch_size=5)
 
-n_feat = X_tn.shape[1]
-n_class = len(set(y))
-epo = 100
+	print(model.evaluate(x_train, y_train)[1])
+	print(model.evaluate(x_test, y_test)[1])
 
-model = Sequential()
-model.add(Dense(20, input_dim=n_feat))
-model.add(BatchNormalization())
-model.add(Activation(relu))
-model.add(Dense(n_class))
-model.add(Activation('softmax'))
+	epoch = np.arange(1, epo + 1)
+	accuracy = hist.history['accuracy']
+	loss = hist.history['loss']
 
-model.summary()
-
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-hist = model.fit(X_tn, y_tn, epochs=epo, batch_size=5)
-
-print(model.evaluate(X_tn, y_tn)[1])
-print(model.evaluate(X_te, y_te)[1])
-
-epoch = np.arange(1, epo+1)
-accuracy = hist.history['accuracy']
-loss = hist.history['loss']
-
-plt.plot(epoch, accuracy, label='Training accuracy')
+	plt.plot(epoch, accuracy, label='Training accuracy')
+	return np.argmax(model.predict(x_test), axis=1)
